@@ -1,0 +1,5 @@
+vignettes/output/
+vignettes/.DS_Store
+.DS_Store
+.Rbuildignore
+.Rproj.user/

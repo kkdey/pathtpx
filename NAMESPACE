@@ -1,0 +1,9 @@
+useDynLib(pathtpx)
+import(slam)
+import(SQUAREM)
+import(boot)
+
+export(stm_tfidf,
+       pathnormalizetpx,
+       rdir,
+       pathtopics)

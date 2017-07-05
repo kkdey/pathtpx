@@ -1,0 +1,162 @@
+---
+title: "Leng et al (Oscope) pathtpx analysis"
+author: "Kushal K Dey"
+date: "7/5/2017"
+output: html_document
+---
+
+We perform pathtpx on the cell - cycle phase data from Leng et al (Oscope) data. Previously, classtpx was applied to this dataset (check classtpx vignette) and the results were not very satisfying. This motivated us to use **pathtpx** instead on this data and see how the results look now.
+
+The main intuition behind replacing classtpx by pathtpx is the following. For classtpx, we assumed that the mean structure for a class (say G1, S, or G2) is preserved when we are applying it on the unlabeled data. But in the biological examples we looked at, this did not seem to be true, owing to many possible sources of variation (both biological and systemic). 
+
+What pathtpx assumes is slightly less constrained than classtpx - it assumes that the genes that are not expressed in each of these classes/phases (G1, S or G2) remain preserved even in the unlabeled cells.
+
+```{r}
+source("../../R/pathcount.R")
+source("../../R/pathtpx.R")
+source("../../R/pathtopics.R")
+set.seed(100)
+library(maptpx)
+library(slam)
+```
+
+```{r}
+library(singleCellRNASeqHumanLengESC)
+data("HumanLengESC")
+leng_gene_names <- Biobase::featureNames(HumanLengESC);
+
+leng_data <- t(Biobase::exprs(HumanLengESC));
+leng_metadata <- Biobase::pData(HumanLengESC)
+leng_cell_state <- leng_metadata$cell_state;
+
+table(leng_cell_state)
+
+index_1 <- which(leng_cell_state=="G1");
+index_2 <- which(leng_cell_state=="S");
+index_3 <- which(leng_cell_state=="G2");
+
+g1_cells <- leng_data[index_1, ]
+s_cells <- leng_data[index_2,]
+g2_cells <- leng_data[index_3,]
+```
+
+## constraint on means
+
+```{r}
+c1 <- colMeans(g1_cells)
+plot(c1)
+
+c2 <- colMeans(s_cells)
+plot(c2)
+
+c3 <- colMeans(g2_cells)
+plot(c3)
+
+index1 <- which(c1 > 1 & c2 < 0.2 & c3 < 0.2)
+index2 <- which(c2 > 1 & c1 < 0.2 & c3 < 0.2)
+index3 <- which(c3 > 1 & c1 < 0.2 & c2 < 0.2)
+
+#index21 <- setdiff(index1, c(index2, index3))
+#index22 <- setdiff(index2, c(index1, index3))
+#index23 <- setdiff(index3, c(index1, index2))
+
+pathways <- list()
+pathways[[1]] <- leng_gene_names[index1]
+pathways[[2]] <- leng_gene_names[index2]
+pathways[[3]] <- leng_gene_names[index3]
+```
+
+
+```{r}
+topic_clus <- pathtopics(leng_data, pathways = pathways, 
+                         tol = 0.01, ord=FALSE, tmax = 100)
+
+```
+
+
+
+
+```{r fig.height = 10, fig.width = 5}
+theta <- topic_clus$theta
+omega <- topic_clus$omega
+
+omega[which(leng_cell_state=="G1"),]
+omega[which(leng_cell_state=="S"),]
+omega[which(leng_cell_state=="G2"),]
+
+annotation <- data.frame(
+  sample_id = paste0("X", c(1:NROW(omega))),
+  tissue_label = factor(leng_cell_state,
+                        levels = c("G1", "S", "G2", "H1") ) )
+
+
+rownames(omega) <- annotation$sample_id;
+
+
+CountClust::StructureGGplot(omega = omega,
+                            annotation = annotation,
+                            palette = RColorBrewer::brewer.pal(8, "Accent"),
+                            yaxis_label = "Cell cycle phase",
+                            order_sample = TRUE,
+                            axis_tick = list(axis_ticks_length = .1,
+                                             axis_ticks_lwd_y = .1,
+                                             axis_ticks_lwd_x = .1,
+                                             axis_label_size = 7,
+                                             axis_label_face = "bold"))
+
+```
+
+## constraint on sums 
+
+```{r}
+c1 <- colSums(g1_cells)
+plot(c1)
+
+c2 <- colSums(s_cells)
+plot(c2)
+
+c3 <- colSums(g2_cells)
+plot(c3)
+
+index1 <- which(c1 > 100 & c2 < 10 & c3 < 10)
+index2 <- which(c2 > 100 & c1 < 10 & c3 < 10)
+index3 <- which(c3 > 100 & c1 < 10 & c2 < 10)
+
+```
+
+```{r}
+topic_clus <- pathtopics(leng_data, pathways = pathways, 
+                         tol = 0.01, ord=FALSE, tmax = 100)
+
+```
+
+```{r fig.height = 10, fig.width = 5}
+theta <- topic_clus$theta
+omega <- topic_clus$omega
+
+omega[which(leng_cell_state=="G1"),]
+omega[which(leng_cell_state=="S"),]
+omega[which(leng_cell_state=="G2"),]
+
+annotation <- data.frame(
+  sample_id = paste0("X", c(1:NROW(omega))),
+  tissue_label = factor(leng_cell_state,
+                        levels = c("G1", "S", "G2", "H1") ) )
+
+
+rownames(omega) <- annotation$sample_id;
+
+
+CountClust::StructureGGplot(omega = omega,
+                            annotation = annotation,
+                            palette = RColorBrewer::brewer.pal(8, "Accent"),
+                            yaxis_label = "Cell cycle phase",
+                            order_sample = TRUE,
+                            axis_tick = list(axis_ticks_length = .1,
+                                             axis_ticks_lwd_y = .1,
+                                             axis_ticks_lwd_x = .1,
+                                             axis_label_size = 7,
+                                             axis_label_face = "bold"))
+
+```
+
